@@ -30,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
@@ -58,7 +57,6 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final long txnIdMostBits;
 
     private final Map<String, CompletableFuture<Void>> registerPartitionMap;
-    private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
 
     private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
@@ -94,7 +92,6 @@ public class TransactionImpl implements Transaction , TimerTask {
         this.txnIdMostBits = txnIdMostBits;
 
         this.registerPartitionMap = new ConcurrentHashMap<>();
-        this.registerSubscriptionMap = new ConcurrentHashMap<>();
         this.tcClient = client.getTcClient();
 
         this.sendFutureList = new ArrayList<>();
@@ -103,21 +100,14 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     }
 
-    // register the topics that will be modified by this transaction
-    public CompletableFuture<Void> registerProducedTopic(String topic) {
+    // add publish partition to this transaction
+    public CompletableFuture<Void> addPublishPartitionToTxn(String topic) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (checkIfOpen(completableFuture)) {
             synchronized (TransactionImpl.this) {
                 // we need to issue the request to TC to register the produced topic
-                return registerPartitionMap.compute(topic, (key, future) -> {
-                    if (future != null) {
-                        return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    } else {
-                        return tcClient.addPublishPartitionToTxnAsync(
-                                new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic))
-                                .thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    }
-                });
+                return tcClient.addPublishPartitionToTxnAsync(
+                        new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic));
             }
         }
         return completableFuture;
@@ -127,15 +117,14 @@ public class TransactionImpl implements Transaction , TimerTask {
         sendFutureList.add(sendFuture);
     }
 
-    // register the topics that will be modified by this transaction
-    public CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
+    // add ack subscription to this transaction
+    public CompletableFuture<Void> addSubscriptionToTxn(String topic, String subscription) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (checkIfOpen(completableFuture)) {
             synchronized (TransactionImpl.this) {
                 // we need to issue the request to TC to register the acked topic
-                return registerSubscriptionMap.computeIfAbsent(Pair.of(topic, subscription), key ->
-                        tcClient.addSubscriptionToTxnAsync(
-                                new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription));
+                return tcClient.addSubscriptionToTxnAsync(
+                        new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription);
             }
         }
         return completableFuture;

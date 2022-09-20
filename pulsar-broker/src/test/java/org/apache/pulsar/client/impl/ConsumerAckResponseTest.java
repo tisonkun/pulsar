@@ -55,7 +55,7 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
         CompletableFuture<Void> completableFuture = CompletableFuture.completedFuture(null);
         doNothing().when(transaction).registerAckOp(any());
         doReturn(true).when(transaction).checkIfOpen(any());
-        doReturn(completableFuture).when(transaction).registerAckedTopic(any(), any());
+        doReturn(completableFuture).when(transaction).addSubscriptionToTxn(any(), any());
 
         Thread.sleep(1000 * 3);
     }

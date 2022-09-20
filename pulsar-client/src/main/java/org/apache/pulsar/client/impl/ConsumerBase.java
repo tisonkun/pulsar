@@ -624,32 +624,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected CompletableFuture<Void> doAcknowledgeWithTxn(List<MessageId> messageIdList, AckType ackType,
                                                            Map<String, Long> properties,
                                                            TransactionImpl txn) {
-        CompletableFuture<Void> ackFuture;
-        if (txn != null && this instanceof ConsumerImpl) {
-            ackFuture = txn.registerAckedTopic(getTopic(), subscription)
-                    .thenCompose(ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
-            // register the ackFuture as part of the transaction
-            txn.registerAckOp(ackFuture);
-        } else {
-            ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
-        }
-        return ackFuture;
+        return doAcknowledge(messageIdList, ackType, properties, txn);
     }
 
     protected CompletableFuture<Void> doAcknowledgeWithTxn(MessageId messageId, AckType ackType,
                                                            Map<String, Long> properties,
                                                            TransactionImpl txn) {
-        CompletableFuture<Void> ackFuture;
-        if (txn != null && (this instanceof ConsumerImpl)) {
-            ackFuture = txn.registerAckedTopic(getTopic(), subscription)
-                    .thenCompose(ignored -> doAcknowledge(messageId, ackType, properties, txn));
-            // register the ackFuture as part of the transaction
-            txn.registerAckOp(ackFuture);
-            return ackFuture;
-        } else {
-            ackFuture = doAcknowledge(messageId, ackType, properties, txn);
-        }
-        return ackFuture;
+        return doAcknowledge(messageId, ackType, properties, txn);
     }
 
     protected abstract CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,

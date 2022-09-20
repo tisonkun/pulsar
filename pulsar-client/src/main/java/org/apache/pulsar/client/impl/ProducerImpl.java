@@ -58,6 +58,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -109,6 +110,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private volatile Timeout sendTimeout = null;
     private final long lookupDeadline;
     private int chunkMaxMessageSize;
+
+    private final AtomicReference<CompletableFuture<MessageId>> sendFutureForTxn = new AtomicReference<>();
 
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> PRODUCER_DEADLINE_UPDATER = AtomicLongFieldUpdater
@@ -410,12 +413,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (txn == null) {
             return internalSendAsync(message);
         } else {
-            CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
-            if (!((TransactionImpl) txn).checkIfOpen(completableFuture)) {
-               return completableFuture;
+            CompletableFuture<MessageId> sendFuture;
+            synchronized (sendFutureForTxn) {
+                sendFuture = sendFutureForTxn.get();
+                if (sendFuture == null) {
+                    sendFuture = ((TransactionImpl) txn).addPublishPartitionToTxn(topic).thenApply(ignore -> null);
+                }
+                sendFuture = sendFuture.thenCompose(ignored -> internalSendAsync(message));
+                sendFutureForTxn.set(sendFuture);
             }
-            return ((TransactionImpl) txn).registerProducedTopic(topic)
-                        .thenCompose(ignored -> internalSendAsync(message));
+            return sendFuture;
         }
     }
 
