@@ -111,7 +111,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final long lookupDeadline;
     private int chunkMaxMessageSize;
 
-    private final AtomicReference<CompletableFuture<MessageId>> sendFutureForTxn = new AtomicReference<>();
+    private final Object sendFutureForTxnLock = new Object();
+    private volatile CompletableFuture<MessageId> sendFutureForTxn;
 
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> PRODUCER_DEADLINE_UPDATER = AtomicLongFieldUpdater
@@ -414,13 +415,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return internalSendAsync(message);
         } else {
             CompletableFuture<MessageId> sendFuture;
-            synchronized (sendFutureForTxn) {
-                sendFuture = sendFutureForTxn.get();
-                if (sendFuture == null) {
-                    sendFuture = ((TransactionImpl) txn).addPublishPartitionToTxn(topic).thenApply(ignore -> null);
+            synchronized (sendFutureForTxnLock) {
+                if (sendFutureForTxn == null) {
+                    sendFutureForTxn = ((TransactionImpl) txn).addPublishPartitionToTxn(topic)
+                            .thenApply(ignore -> null);
                 }
-                sendFuture = sendFuture.thenCompose(ignored -> internalSendAsync(message));
-                sendFutureForTxn.set(sendFuture);
+                sendFutureForTxn = sendFutureForTxn.thenCompose(ignored -> internalSendAsync(message));
+                sendFuture = sendFutureForTxn;
             }
             return sendFuture;
         }

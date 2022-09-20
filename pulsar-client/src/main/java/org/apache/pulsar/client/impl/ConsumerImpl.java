@@ -161,7 +161,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final long startMessageRollbackDurationInSec;
 
-    private final AtomicReference<CompletableFuture<Void>> ackFutureForTxn = new AtomicReference<>();
+    private final Object ackFutureForTxnLock = new Object();
+    private volatile CompletableFuture<Void> ackFutureForTxn;
 
     private volatile boolean hasReachedEndOfTopic;
 
@@ -632,13 +633,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         CompletableFuture<Void> ackFuture;
-        synchronized (ackFutureForTxn) {
-            ackFuture = ackFutureForTxn.get();
-            if (ackFuture == null) {
-                ackFuture = txn.addSubscriptionToTxn(getTopic(), subscription);
+        synchronized (ackFutureForTxnLock) {
+            if (ackFutureForTxn == null) {
+                ackFutureForTxn = txn.addSubscriptionToTxn(getTopic(), subscription);
             }
-            ackFuture = ackFuture.thenCompose(ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
-            ackFutureForTxn.set(ackFuture);
+            ackFutureForTxn = ackFutureForTxn.thenCompose(
+                    ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
+            ackFuture = ackFutureForTxn;
         }
         // register the ackFuture as part of the transaction
         txn.registerAckOp(ackFuture);
@@ -653,13 +654,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return super.doAcknowledgeWithTxn(messageId, ackType, properties, null);
         }
         CompletableFuture<Void> ackFuture;
-        synchronized (ackFutureForTxn) {
-            ackFuture = ackFutureForTxn.get();
-            if (ackFuture == null) {
-                ackFuture = txn.addSubscriptionToTxn(getTopic(), subscription);
+        synchronized (ackFutureForTxnLock) {
+            if (ackFutureForTxn == null) {
+                ackFutureForTxn = txn.addSubscriptionToTxn(getTopic(), subscription);
             }
-            ackFuture = ackFuture.thenCompose(ignored -> doAcknowledge(messageId, ackType, properties, txn));
-            ackFutureForTxn.set(ackFuture);
+            ackFutureForTxn = ackFutureForTxn.thenCompose(
+                    ignored -> doAcknowledge(messageId, ackType, properties, txn));
+            ackFuture = ackFutureForTxn;
         }
         // register the ackFuture as part of the transaction
         txn.registerAckOp(ackFuture);
