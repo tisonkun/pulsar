@@ -19,7 +19,6 @@
 package org.apache.pulsar.sql.presto;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.METADATA_STORE_SCHEME;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
@@ -29,7 +28,6 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.meta.MetadataDrivers;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
@@ -49,7 +47,6 @@ import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
 /**
  * Implementation of a cache for the Pulsar connector.
@@ -77,8 +74,6 @@ public class PulsarConnectorCache {
 
 
     private PulsarConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
-        MetadataDrivers.registerClientDriver(METADATA_STORE_SCHEME, PulsarMetadataClientDriver.class);
-
         this.metadataStore = MetadataStoreExtended.create(pulsarConnectorConfig.getMetadataUrl(),
                 MetadataStoreConfig.builder().metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
         this.managedLedgerFactory = initManagedLedgerFactory(pulsarConnectorConfig);
@@ -116,7 +111,7 @@ public class PulsarConnectorCache {
     private ManagedLedgerFactory initManagedLedgerFactory(
             PulsarConnectorConfig pulsarConnectorConfig
     ) throws Exception {
-        String metadataServiceUri = METADATA_STORE_SCHEME + ":" + pulsarConnectorConfig.getMetadataUrl()
+        String metadataServiceUri = pulsarConnectorConfig.getMetadataUrl()
                 + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
             .setMetadataServiceUri(metadataServiceUri)

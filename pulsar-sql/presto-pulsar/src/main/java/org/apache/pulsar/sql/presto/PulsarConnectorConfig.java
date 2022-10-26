@@ -48,7 +48,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private String brokerServiceUrl = "http://localhost:8080";
     private String brokerBinaryServiceUrl = "pulsar://localhost:6650/";
     private String webServiceUrl = ""; //leave empty
-    private String metadataUrl = "rocksdb://" + Paths.get("data/metadata").toAbsolutePath();
+    private String metadataUrl = "zk://localhost:2181";
     private int entryReadBatchSize = 100;
     private int targetNumSplits = 2;
     private int maxSplitMessageQueueSize = 10000;
@@ -159,7 +159,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
         if (hasMetadataUrl) {
             return this;
         }
-        this.metadataUrl = "zk:" + zookeeperUri;
+        this.metadataUrl = "zk://" + zookeeperUri;
         return this;
     }
 
