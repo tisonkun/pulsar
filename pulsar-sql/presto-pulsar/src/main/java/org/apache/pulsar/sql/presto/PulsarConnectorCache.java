@@ -28,7 +28,6 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.meta.MetadataDrivers;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
@@ -56,7 +55,7 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 public class PulsarConnectorCache {
 
     static {
-        MetadataDrivers.registerClientDriver("metadata-store", PulsarMetadataClientDriver.class);
+        PulsarMetadataClientDriver.init();
     }
 
     private static final Logger log = Logger.get(PulsarConnectorCache.class);

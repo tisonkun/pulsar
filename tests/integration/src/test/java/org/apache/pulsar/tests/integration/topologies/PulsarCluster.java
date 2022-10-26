@@ -464,12 +464,13 @@ public class PulsarCluster {
                 clusterName, hostName)
                 .withNetwork(network)
                 .withNetworkAliases(hostName)
+                // environment variables are applied via apply-config-from-env-with-prefix.py
                 .withEnv("clusterName", clusterName)
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
-                .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                 .withEnv("pulsar.web-service-url", "http://pulsar-broker-0:8080")
                 .withEnv("SQL_PREFIX_pulsar.max-message-size", "" + spec.maxMessageSize)
+                .withEnv("SQL_PREFIX_pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                 .withClasspathResourceMapping(
                         resourcePath, "/pulsar/trino/conf/config.properties", BindMode.READ_WRITE);
         if (spec.queryLastMessage) {
