@@ -12,6 +12,7 @@ docs:
   - 'deployment/**'
   - 'wiki/**'
   - 'pip/**'
+  - 'doap_Pulsar.rdf'
 tests:
   - added|modified: '**/src/test/java/**/*.java'
 need_owasp:
